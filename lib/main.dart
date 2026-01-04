@@ -1,22 +1,78 @@
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:prod_kagitoban_app/amplifyconfigration.dart';
 import 'package:prod_kagitoban_app/presentation/screens/calendar.dart';
+import 'package:prod_kagitoban_app/presentation/screens/login.dart';
 import 'package:prod_kagitoban_app/presentation/screens/members.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _configureAmplify();
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+Future<void> _configureAmplify() async {
+  try {
+    await Amplify.addPlugin(AmplifyAuthCognito());
+    await Amplify.configure(amplifyconfig);
+  } on AmplifyAlreadyConfiguredException {
+    // Safe to ignore
+  }
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _isCheckingAuth = true;
+  bool _isSignedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final session = await Amplify.Auth.fetchAuthSession();
+    setState(() {
+      _isSignedIn = session.isSignedIn;
+      _isCheckingAuth = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: const CalendarScreen(),
-      routes: {
-        CalendarScreen.routeName: (context) => const CalendarScreen(),
-        MembersScreen.routeName: (context) => const MembersScreen(),
-      },
-    );
+    if (_isCheckingAuth) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return _isSignedIn
+        ? MaterialApp(
+            home: const CalendarScreen(),
+            routes: {
+              CalendarScreen.routeName: (context) => const CalendarScreen(),
+              MembersScreen.routeName: (context) => const MembersScreen(),
+            },
+          )
+        : MaterialApp(
+            home: const Scaffold(body: LoginPage()),
+          );
+    // return MaterialApp(
+    //   home: const CalendarScreen(),
+    //   routes: {
+    //     CalendarScreen.routeName: (context) => const CalendarScreen(),
+    //     MembersScreen.routeName: (context) => const MembersScreen(),
+    //   },
+    // );
   }
 }
