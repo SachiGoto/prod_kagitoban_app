@@ -54,11 +54,20 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkAuth() async {
-    final session = await Amplify.Auth.fetchAuthSession();
-    setState(() {
-      _isSignedIn = session.isSignedIn;
-      _isCheckingAuth = false;
-    });
+    try {
+      final session = await Amplify.Auth.fetchAuthSession();
+      debugPrint('Auth session check: isSignedIn = ${session.isSignedIn}');
+      setState(() {
+        _isSignedIn = session.isSignedIn;
+        _isCheckingAuth = false;
+      });
+    } catch (e) {
+      debugPrint('Auth check error: $e');
+      setState(() {
+        _isSignedIn = false;
+        _isCheckingAuth = false;
+      });
+    }
   }
 
   @override
