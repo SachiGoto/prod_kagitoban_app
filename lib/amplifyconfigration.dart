@@ -17,7 +17,7 @@ const amplifyconfig = '''{
               "WebDomain": "us-east-173ephulis.auth.us-east-1.amazoncognito.com",
               "AppClientId": "ush7n9penseivipufssq0iqna",
               "SignInRedirectURI": "https://main.d3c2p7z3mrhvgx.amplifyapp.com/",
-              "SignOutRedirectURI": "hhttps://main.d3c2p7z3mrhvgx.amplifyapp.com/",
+              "SignOutRedirectURI": "https://main.d3c2p7z3mrhvgx.amplifyapp.com/",
               "Scopes": ["openid", "profile"]
             }
           }
