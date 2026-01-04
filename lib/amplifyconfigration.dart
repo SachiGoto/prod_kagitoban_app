@@ -30,10 +30,10 @@ const amplifyconfig = '''{
             "OAuth": {
               "WebDomain": "kagitoban.auth.us-east-1.amazoncognito.com",
               "AppClientId": "56gjnh342fo49sm52pvavf02eb",
-              "SignInRedirectURI": "https://main.d3c2p7z3mrhvgx.amplifyapp.com",
-              "SignOutRedirectURI": "https://main.d3c2p7z3mrhvgx.amplifyapp.com",
+              "SignInRedirectURI": "https://main.d3c2p7z3mrhvgx.amplifyapp.com/",
+              "SignOutRedirectURI": "https://main.d3c2p7z3mrhvgx.amplifyapp.com/",
               "AllowedCallbackURLs": [
-                "https://kagitoban.auth.us-east-1.amazoncognito.com/oauth2/idpresponse",
+                "https://kagitoban.auth.us-east-1.amazoncognito.com/oauth2/idpresponse/",
                 "http://localhost:59255/"
 
               ],
