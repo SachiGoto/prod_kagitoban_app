@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:prod_kagitoban_app/presentation/screens/calendar.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -10,20 +9,15 @@ class LoginPage extends StatelessWidget {
       await Amplify.Auth.signInWithWebUI(
         provider: AuthProvider.oidc('LINE', 'https://access.line.me'),
       );
-
-      // ✅ If we reach here, login succeeded
-      if (context.mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CalendarScreen()),
-        );
-      }
+      // Hub listener in main.dart will handle navigation
     } catch (e) {
       debugPrint('Login failed: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login failed')),
+        );
+      }
     }
   }
 

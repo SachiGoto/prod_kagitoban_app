@@ -36,6 +36,21 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _checkAuth();
+    _listenToAuthEvents();
+  }
+
+  void _listenToAuthEvents() {
+    Amplify.Hub.listen(HubChannel.Auth, (event) {
+      if (event.eventName == 'SIGNED_IN') {
+        setState(() {
+          _isSignedIn = true;
+        });
+      } else if (event.eventName == 'SIGNED_OUT') {
+        setState(() {
+          _isSignedIn = false;
+        });
+      }
+    });
   }
 
   Future<void> _checkAuth() async {
@@ -56,17 +71,13 @@ class _MyAppState extends State<MyApp> {
       );
     }
 
-    return _isSignedIn
-        ? MaterialApp(
-            home: const CalendarScreen(),
-            routes: {
-              CalendarScreen.routeName: (context) => const CalendarScreen(),
-              MembersScreen.routeName: (context) => const MembersScreen(),
-            },
-          )
-        : MaterialApp(
-            home: const Scaffold(body: LoginPage()),
-          );
+    return MaterialApp(
+      home: _isSignedIn ? const CalendarScreen() : const LoginPage(),
+      routes: {
+        CalendarScreen.routeName: (context) => const CalendarScreen(),
+        MembersScreen.routeName: (context) => const MembersScreen(),
+      },
+    );
     // return MaterialApp(
     //   home: const CalendarScreen(),
     //   routes: {
