@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:prod_kagitoban_app/view_models/calendarViewModel.dart';
+import 'package:provider/provider.dart';
 import 'members.dart';
 
 /// A simple, self-contained monthly calendar screen.
@@ -64,6 +66,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final firstOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final calendarVM = context.watch<CalendarViewModel>();
+    final assignments = calendarVM.assignments;
+    print(calendarVM.toString());
     // DateTime.weekday: 1 = Monday, 7 = Sunday
     final startOffset = firstOfMonth.weekday - 1; // Monday-start week
     final daysInMonth =
@@ -91,7 +96,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
               // Open members list and await the selected member name.
               final selected = await Navigator.push<String>(
                 context,
-                MaterialPageRoute(builder: (context) => const MembersScreen()),
+                MaterialPageRoute(
+                    builder: (context) => MembersScreen(
+                          selectedDate: date,
+                        )),
               );
 
               if (selected != null && selected.isNotEmpty) {
@@ -127,17 +135,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             : null,
                       ),
                     ),
-                    if (_assignments[_keyForDate(date)] != null) ...[
-                      const SizedBox(height: 6),
-                      Flexible(
-                        child: Text(
-                          _assignments[_keyForDate(date)]!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
+                    SizedBox(width: 20),
+                    if (assignments.containsKey(date))
+                      Text(assignments[date].name),
                   ],
                 ),
               ),
@@ -156,21 +156,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Column(
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  onPressed: _previousMonth,
-                  icon: const Icon(Icons.chevron_left),
-                  tooltip: 'Previous month',
+                Container(
+                  width: 300,
+                  child: IconButton(
+                    onPressed: _previousMonth,
+                    icon: const Icon(Icons.chevron_left),
+                    tooltip: 'Previous month',
+                  ),
                 ),
-                Text(
-                  _monthLabel,
-                  style: Theme.of(context).textTheme.titleLarge,
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      _monthLabel,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
                 ),
-                IconButton(
-                  onPressed: _nextMonth,
-                  icon: const Icon(Icons.chevron_right),
-                  tooltip: 'Next month',
+                Container(
+                  width: 300,
+                  child: Row(
+                    children: [
+                      ElevatedButton(
+                          child: const Text('assign members?'),
+                          onPressed: () {
+                            Navigator.pushNamed(
+                                context, MembersScreen.routeName);
+                          }),
+                      SizedBox(width: 20),
+                      IconButton(
+                        onPressed: _nextMonth,
+                        icon: const Icon(Icons.chevron_right),
+                        tooltip: 'Next month',
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
