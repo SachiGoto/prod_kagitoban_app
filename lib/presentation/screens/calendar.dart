@@ -3,6 +3,7 @@ import 'package:prod_kagitoban_app/view_models/calendarViewModel.dart';
 import 'package:prod_kagitoban_app/view_models/memberViewMode.dart';
 import 'package:provider/provider.dart';
 import 'members.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
 
 class CalendarScreen extends StatefulWidget {
   static const routeName = '/calendar';
@@ -27,9 +28,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
-    // Use addPostFrameCallback so context is available
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final session = await Amplify.Auth.fetchAuthSession();
+
+      debugPrint('Calendar auth signed in: ${session.isSignedIn}');
+
+      if (!mounted) return;
+
+      if (!session.isSignedIn) {
+        await Amplify.Auth.signInWithWebUI(
+          provider: const AuthProvider.oidc('LINE', 'LINE'),
+        );
+        return;
+      }
+
       await context.read<MemberViewModel>().loadMembers();
+
+      if (!mounted) return;
+
       _loadCurrentMonth();
     });
   }
