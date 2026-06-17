@@ -26,10 +26,12 @@ const amplifyConfig = r'''{
     "oauth": {
       "identity_providers": [],
       "redirect_sign_in_uri": [
-        "http://localhost:57417/"
+        "http://localhost:57417/",
+        "https://main.d3c2p7z3mrhvgx.amplifyapp.com/"
       ],
       "redirect_sign_out_uri": [
-        "http://localhost:57417/"
+        "http://localhost:57417/",
+        "https://main.d3c2p7z3mrhvgx.amplifyapp.com/"
       ],
       "response_type": "code",
       "scopes": [

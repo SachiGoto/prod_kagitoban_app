@@ -25,8 +25,14 @@ export const auth = defineAuth({
       ],
 
       // REQUIRED in your version
-      callbackUrls: ["http://localhost:57417/"],
-      logoutUrls: ["http://localhost:57417/"],
+      callbackUrls: [
+        "http://localhost:57417/",
+        "https://main.d3c2p7z3mrhvgx.amplifyapp.com/",
+      ],
+      logoutUrls: [
+        "http://localhost:57417/",
+        "https://main.d3c2p7z3mrhvgx.amplifyapp.com/",
+      ],
     },
   },
 });
