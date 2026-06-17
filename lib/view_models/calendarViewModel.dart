@@ -166,7 +166,11 @@ class CalendarViewModel extends ChangeNotifier {
           );
           final response = await ApiLoadingController.instance.run(
             () => Amplify.API
-                .mutate(request: ModelMutations.create(assignment))
+                .mutate(
+                    request: ModelMutations.create(
+                  assignment,
+                  authorizationMode: APIAuthorizationType.apiKey,
+                ))
                 .response,
           );
           if (response.errors.isNotEmpty) {
@@ -181,7 +185,9 @@ class CalendarViewModel extends ChangeNotifier {
           );
           final response = await ApiLoadingController.instance.run(
             () => Amplify.API
-                .mutate(request: ModelMutations.update(updated))
+                .mutate(
+                    request: ModelMutations.update(updated,
+                        authorizationMode: APIAuthorizationType.apiKey))
                 .response,
           );
           if (response.errors.isNotEmpty) {
