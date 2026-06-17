@@ -1,55 +1,141 @@
-import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { saveLineUser } from "../functions/saveLineUser/resource";
+import { notify } from "../functions/notifyLineUsers/resource";
+// import { saveSchedule } from "../functions/saveSchedule/resource";
+// import { saveAssignments } from "../functions/saveAssignments/resource";
 
-/*== STEP 1 ===============================================================
-The section below creates a Todo database table with a "content" field. Try
-adding a new "isDone" field as a boolean. The authorization rule below
-specifies that any unauthenticated user can "create", "read", "update", 
-and "delete" any "Todo" records.
-=========================================================================*/
-const schema = a.schema({
-  Todo: a
-    .model({
-      content: a.string(),
-      isDone: a.boolean(),
-    })
-    .authorization((allow) => [allow.owner()]),
-});
+const schema = a
+  .schema({
+    LineUser: a
+      .model({
+        id: a.id(),
+        name: a.string(),
+        email: a.string(),
+        avatar: a.string(),
+      })
+      .authorization((allow) => [allow.authenticated()]),
+
+    Schedule: a
+      .model({
+        yearMonth: a.string().required(), // e.g. "2025-01"
+      })
+      .authorization((allow) => [
+        allow.publicApiKey().to(["read"]),
+        allow.authenticated(),
+      ]),
+
+    Assignment: a
+      .model({
+        yearMonth: a.string().required(), // "2025-01"
+        date: a.string().required(), // "2025-01-15"
+        memberId: a.string().required(),
+        memberName: a.string().required(),
+      })
+      .authorization((allow) => [allow.publicApiKey(), allow.authenticated()]),
+
+    notifyUsers: a
+      .mutation()
+      .arguments({
+        assignments: a.json().required(),
+      })
+      .returns(a.json())
+      .handler(a.handler.function(notify))
+      .authorization((allow) => [allow.authenticated(), allow.publicApiKey()]),
+  })
+  .authorization((allow) => [
+    allow.resource(saveLineUser).to(["query", "mutate"]),
+    allow.resource(notify).to(["query", "mutate"]),
+  ]);
+
+// saveAssignments: a
+//   .mutation()
+//   .arguments({
+//     yearMonth: a.string().required(),
+//     date: a.string().required(),
+//     memberId: a.string().required(),
+//     memberName: a.string().required(),
+//     assignments: a.json().required(), // array of all assignments for the month
+//   })
+//   .returns(a.json())
+//   .handler(a.handler.function(saveAssignments))
+//   .authorization((allow) => [allow.authenticated()]),
+
+//   notifyUsers: a
+//     .mutation()
+//     .arguments({
+//       assignments: a.json().required(),
+//     })
+//     .returns(a.json())
+//     // .handler(a.handler.function(saveAssignments)) // Reuse the same function for simplicity
+//     .authorization((allow) => [allow.authenticated()]),
+// });
 
 export type Schema = ClientSchema<typeof schema>;
+
+// export const data = defineData({
+//   schema,
+//   authorizationModes: {
+//     defaultAuthorizationMode: "apiKey",
+//     apiKeyAuthorizationMode: {
+//       expiresInDays: 30,
+//     },
+//   },
+// });
+
+// Mutation to update assignments for a given schedule
+// updateAssignments: a
+//   .mutation()
+//   .arguments({
+//     id: a.id().required(),
+//     assignments: a.json().required(),
+//   })
+//   .returns(a.json())
+//   .handler(
+//     a.handler.inlineCode(`
+//       import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+//       import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+
+//       const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+//       export const handler = async (event) => {
+//         const { id, assignments } = event.arguments;
+
+//         const result = await client.send(new UpdateCommand({
+//           TableName: process.env.SCHEDULE_TABLE_NAME,
+//           Key: { id },
+//           UpdateExpression: "SET assignments = :assignments, updatedAt = :updatedAt",
+//           ExpressionAttributeValues: {
+//             ":assignments": assignments,
+//             ":updatedAt": new Date().toISOString(),
+//           },
+//           ReturnValues: "ALL_NEW",
+//         }));
+
+//         return result.Attributes;
+//       };
+//     `)
+//   )
+//   .authorization((allow) => [allow.authenticated()]),
+
+// Existing notify mutation
+//   notifyUsers: a
+//     .mutation()
+//     .arguments({
+//       assignments: a.json().required(),
+//     })
+//     .returns(a.json())
+//     .handler(a.handler.function(saveSchedule))
+//     .authorization((allow) => [allow.authenticated()]),
+// });
+
+// export type Schema = ClientSchema<typeof schema>;
 
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: 'userPool',
-    //identityPool to userPool
+    defaultAuthorizationMode: "apiKey",
+    apiKeyAuthorizationMode: {
+      expiresInDays: 30,
+    },
   },
 });
-
-/*== STEP 2 ===============================================================
-Go to your frontend source code. From your client-side code, generate a
-Data client to make CRUDL requests to your table. (THIS SNIPPET WILL ONLY
-WORK IN THE FRONTEND CODE FILE.)
-
-Using JavaScript or Next.js React Server Components, Middleware, Server 
-Actions or Pages Router? Review how to generate Data clients for those use
-cases: https://docs.amplify.aws/gen2/build-a-backend/data/connect-to-API/
-=========================================================================*/
-
-/*
-"use client"
-import { generateClient } from "aws-amplify/data";
-import type { Schema } from "@/amplify/data/resource";
-
-const client = generateClient<Schema>() // use this Data client for CRUDL requests
-*/
-
-/*== STEP 3 ===============================================================
-Fetch records from the database and use them in your frontend component.
-(THIS SNIPPET WILL ONLY WORK IN THE FRONTEND CODE FILE.)
-=========================================================================*/
-
-/* For example, in a React component, you can use this snippet in your
-  function's RETURN statement */
-// const { data: todos } = await client.models.Todo.list()
-
-// return <ul>{todos.map(todo => <li key={todo.id}>{todo.content}</li>)}</ul>
