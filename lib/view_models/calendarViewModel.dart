@@ -229,33 +229,24 @@ class CalendarViewModel extends ChangeNotifier {
   }
 
   Future<List<Assignment?>> _listAssignmentsForMonth(String yearMonth) async {
-    final items = <Assignment?>[];
-    var request = ModelQueries.list(
+    final request = ModelQueries.list(
       Assignment.classType,
       where: Assignment.YEARMONTH.eq(yearMonth),
+      authorizationMode: APIAuthorizationType.apiKey,
       limit: 100,
     );
 
-    while (true) {
-      final response = await ApiLoadingController.instance.run(
-        () => Amplify.API.query(request: request).response,
-      );
+    final response = await ApiLoadingController.instance.run(
+      () => Amplify.API.query(request: request).response,
+    );
 
-      if (response.errors.isNotEmpty) {
-        throw Exception(response.errors.first.message);
-      }
-
-      final page = response.data;
-      if (page == null) break;
-
-      items.addAll(page.items);
-
-      final nextRequest = page.requestForNextResult;
-      if (nextRequest == null) break;
-
-      request = nextRequest;
+    if (response.errors.isNotEmpty) {
+      throw Exception(response.errors.first.message);
     }
 
-    return items;
+    final page = response.data;
+    if (page == null) return [];
+
+    return page.items;
   }
 }
