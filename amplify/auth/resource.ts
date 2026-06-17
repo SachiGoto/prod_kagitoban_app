@@ -4,6 +4,7 @@ import { saveLineUser } from "../functions/saveLineUser/resource";
 export const auth = defineAuth({
   triggers: {
     postConfirmation: saveLineUser,
+    postAuthentication: saveLineUser,
   },
   loginWith: {
     email: true,

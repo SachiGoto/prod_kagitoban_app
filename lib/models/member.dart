@@ -3,12 +3,14 @@ class Member {
   final String name;
   final String? email;
   final String? avatar;
+  final int active;
 
   const Member({
     required this.id,
     required this.name,
     this.email,
     this.avatar,
+    this.active = 1,
   });
 
   /// Create Member from API / Amplify / JSON
@@ -18,6 +20,7 @@ class Member {
       name: json['name'] as String,
       email: json['email'] as String?,
       avatar: json['avatar'] as String?,
+      active: json['active'] as int? ?? 1,
     );
   }
 
@@ -28,12 +31,13 @@ class Member {
       'name': name,
       'email': email,
       'avatar': avatar,
+      'active': active,
     };
   }
 
   /// Helpful for debugging
   @override
   String toString() {
-    return 'Member(id: $id, name: $name, email: $email, avatar: $avatar)';
+    return 'Member(id: $id, name: $name, email: $email, avatar: $avatar, active:$active)';
   }
 }

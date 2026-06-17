@@ -1,36 +1,49 @@
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { Amplify } from "aws-amplify";
+import { generateClient } from "aws-amplify/data";
+import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
+import { env } from "$amplify/env/saveLineUser";
+import type { Schema } from "../../data/resource";
 
-const client = new DynamoDBClient({});
+const { resourceConfig, libraryOptions } =
+  await getAmplifyDataClientConfig(env);
+
+Amplify.configure(resourceConfig, libraryOptions);
+
+const client = generateClient<Schema>();
 
 export const handler = async (event: any) => {
-  console.log("🔥 PostConfirmation trigger fired");
-
   const attrs = event.request.userAttributes;
-
   const identities = attrs.identities ? JSON.parse(attrs.identities) : [];
   const lineIdentity = identities.find((i: any) => i.providerName === "LINE");
+  const id = lineIdentity?.userId ?? attrs.sub;
 
-  const tableName = process.env.LINEUSER_TABLE_NAME;
-  if (!tableName) {
-    console.error("❌ LINEUSER_TABLE_NAME is not set");
-    return event;
+  if (!id) {
+    throw new Error("LINE user ID and Cognito sub are both missing");
   }
 
-  await client.send(
-    new PutItemCommand({
-      TableName: tableName,
-      Item: {
-        id: { S: attrs.sub }, // Cognito sub
-        lineUserId: { S: lineIdentity?.userId ?? "" },
-        name: { S: attrs.name ?? "" },
-        email: { S: attrs.email ?? "" },
-        avatar: { S: attrs.picture ?? "" },
-        createdAt: { S: new Date().toISOString() },
-      },
-    }),
-  );
+  const input = {
+    id,
+    name: attrs.preferred_username ?? attrs.name ?? "",
+    email: attrs.email ?? "",
+    avatar: attrs.picture ?? "",
+  };
 
-  console.log("✅ LINE user saved to DynamoDB");
+  const { data: existing, errors: getErrors } =
+    await client.models.LineUser.get({ id });
+
+  if (getErrors?.length) {
+    throw new Error(getErrors.map((error) => error.message).join(", "));
+  }
+
+  const result = existing
+    ? await client.models.LineUser.update(input)
+    : await client.models.LineUser.create(input);
+
+  if (result.errors?.length) {
+    throw new Error(result.errors.map((error) => error.message).join(", "));
+  }
+
+  console.log(`LINE user ${existing ? "updated" : "created"}: ${id}`);
 
   return event;
 };

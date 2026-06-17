@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:prod_kagitoban_app/view_models/calendarViewModel.dart';
+import 'package:prod_kagitoban_app/view_models/memberViewMode.dart';
 import 'package:provider/provider.dart';
 import 'members.dart';
 
-/// A simple, self-contained monthly calendar screen.
-///
-/// - Use `CalendarScreen.routeName` for navigation if you want to register it
-///   in the app routes.
 class CalendarScreen extends StatefulWidget {
   static const routeName = '/calendar';
 
@@ -20,9 +17,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime _today = DateTime.now();
 
-  // Map a Y-M-D string to the selected member name for that date.
-  final Map<String, String> _assignments = {};
-
   String _keyForDate(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
     final m = date.month.toString().padLeft(2, '0');
@@ -30,16 +24,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return '$y-$m-$d';
   }
 
+  @override
+  void initState() {
+    super.initState();
+    // Use addPostFrameCallback so context is available
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<MemberViewModel>().loadMembers();
+      _loadCurrentMonth();
+    });
+  }
+
+  void _loadCurrentMonth() {
+    final calendarVM = context.read<CalendarViewModel>();
+    final yearMonth =
+        '${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}';
+    calendarVM.loadAssignments(yearMonth);
+  }
+
   void _previousMonth() {
     setState(() {
       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
     });
+    _loadCurrentMonth();
   }
 
   void _nextMonth() {
     setState(() {
       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
     });
+    _loadCurrentMonth();
   }
 
   List<String> get _weekdayLabels =>
@@ -63,18 +76,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return '${months[_focusedMonth.month - 1]} ${_focusedMonth.year}';
   }
 
+  bool get _isPastMonth {
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+    final focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month);
+    return focusedMonth.isBefore(currentMonth);
+  }
+
   @override
   Widget build(BuildContext context) {
     final firstOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final calendarVM = context.watch<CalendarViewModel>();
     final assignments = calendarVM.assignments;
-    print(calendarVM.toString());
-    // DateTime.weekday: 1 = Monday, 7 = Sunday
-    final startOffset = firstOfMonth.weekday - 1; // Monday-start week
+    debugPrint("loaded assignments: ${assignments.length}");
+    debugPrint(
+        "loaded assignments: ${assignments.keys.map((d) => _keyForDate(d)).join(', ')}");
+    final startOffset = firstOfMonth.weekday - 1;
     final daysInMonth =
         DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
 
-    // Build a list of 42 entries (6 weeks) to display the calendar grid
     final cells = List<Widget>.generate(42, (index) {
       final dayNumber = index - startOffset + 1;
       if (dayNumber < 1 || dayNumber > daysInMonth) {
@@ -93,23 +113,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: () async {
-              // Open members list and await the selected member name.
               final selected = await Navigator.push<String>(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => MembersScreen(
-                          selectedDate: date,
-                        )),
+                  builder: (context) => MembersScreen(selectedDate: date),
+                ),
               );
 
               if (selected != null && selected.isNotEmpty) {
-                setState(() {
-                  _assignments[_keyForDate(date)] = selected;
-                });
+                setState(() {});
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content: Text(
-                          'Assigned "${selected}" to ${date.toLocal().toIso8601String().split('T').first}')),
+                    content: Text(
+                        'Assigned "$selected" to ${date.toLocal().toIso8601String().split('T').first}'),
+                  ),
                 );
               }
             },
@@ -124,7 +141,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(6.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       '$dayNumber',
@@ -135,9 +152,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             : null,
                       ),
                     ),
-                    SizedBox(width: 20),
                     if (assignments.containsKey(date))
-                      Text(assignments[date].name),
+                      Text(
+                        assignments[date]?.name ?? 'No assignment',
+                        style: const TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ],
                 ),
               ),
@@ -155,48 +175,81 @@ class _CalendarScreenState extends State<CalendarScreen> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            Row(
-              // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 300,
-                  child: IconButton(
-                    onPressed: _previousMonth,
-                    icon: const Icon(Icons.chevron_left),
-                    tooltip: 'Previous month',
-                  ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Text(
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 820),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final monthTitle = Text(
                       _monthLabel,
+                      textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
+                    );
+
+                    final actionButtons = Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: _isPastMonth
+                              ? null
+                              : () {
+                                  final yyyyMM =
+                                      '${_focusedMonth.year}${_focusedMonth.month.toString().padLeft(2, '0')}';
+
+                                  calendarVM.autoAssignMembersForMonth(
+                                    yyyyMM: yyyyMM,
+                                    members: context
+                                        .read<MemberViewModel>()
+                                        .activeMembers,
+                                  );
+                                },
+                          child: const Text('Auto assign'),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: _isPastMonth
+                              ? null
+                              : () => calendarVM.isFinalized
+                                  ? calendarVM.updateAssignments(
+                                      month: _focusedMonth)
+                                  : calendarVM.finalizeAssignments(
+                                      month: _focusedMonth),
+                          child: Text(
+                              calendarVM.isFinalized ? 'Update' : 'Finalize'),
+                        ),
+                      ],
+                    );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: _previousMonth,
+                              icon: const Icon(Icons.chevron_left),
+                              tooltip: 'Previous month',
+                            ),
+                            Expanded(
+                              child: Center(child: monthTitle),
+                            ),
+                            IconButton(
+                              onPressed: _nextMonth,
+                              icon: const Icon(Icons.chevron_right),
+                              tooltip: 'Next month',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Center(child: actionButtons),
+                      ],
+                    );
+                  },
                 ),
-                Container(
-                  width: 300,
-                  child: Row(
-                    children: [
-                      ElevatedButton(
-                          child: const Text('assign members?'),
-                          onPressed: () {
-                            Navigator.pushNamed(
-                                context, MembersScreen.routeName);
-                          }),
-                      SizedBox(width: 20),
-                      IconButton(
-                        onPressed: _nextMonth,
-                        icon: const Icon(Icons.chevron_right),
-                        tooltip: 'Next month',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 8),
-            // Weekday labels
             Row(
               children: _weekdayLabels
                   .map(
@@ -215,24 +268,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   .toList(),
             ),
             const SizedBox(height: 8),
-            // Calendar grid
             Expanded(
               child: GridView.count(
-                // Allow scrolling when content overflows and ensure the last
-                // row is visible above the bottom navigation bar.
                 padding: EdgeInsets.only(
-                    bottom: kBottomNavigationBarHeight +
-                        MediaQuery.of(context).padding.bottom +
-                        12),
+                  bottom: kBottomNavigationBarHeight +
+                      MediaQuery.of(context).padding.bottom +
+                      12,
+                ),
                 crossAxisCount: 7,
                 childAspectRatio: 1,
                 children: cells,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap a date to see a placeholder action',
-              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
