@@ -33,9 +33,10 @@ class _MembersScreenState extends State<MembersScreen> {
   Widget build(BuildContext context) {
     final memberViewModel = context.watch<MemberViewModel>();
     debugPrint(memberViewModel.members.toString());
+    final selectedDate = widget.selectedDate;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Members'),
+        title: const Text('メンバー一覧'),
       ),
       body: memberViewModel.isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -45,13 +46,33 @@ class _MembersScreenState extends State<MembersScreen> {
                   ? const Center(child: Text('No members found'))
                   : ListView.builder(
                       padding: const EdgeInsets.all(12),
-                      itemCount: memberViewModel.members.length,
+                      itemCount: memberViewModel.members.length +
+                          (selectedDate == null ? 0 : 1),
                       itemBuilder: (context, index) {
-                        final member = memberViewModel.members[index];
+                        if (selectedDate != null && index == 0) {
+                          return Card(
+                            child: ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.person_off),
+                              ),
+                              title: const Text('担当者なし'),
+                              subtitle: const Text('この日の割り当てを外す'),
+                              onTap: () {
+                                context
+                                    .read<CalendarViewModel>()
+                                    .unassignSelectedDate(selectedDate);
+                                Navigator.pop(context, '担当者なし');
+                              },
+                            ),
+                          );
+                        }
+
+                        final memberIndex =
+                            selectedDate == null ? index : index - 1;
+                        final member = memberViewModel.members[memberIndex];
                         final name =
                             member.name.isNotEmpty ? member.name : 'No Name';
                         final avatar = member.avatar ?? '';
-                        final selectedDate = widget.selectedDate;
                         final VoidCallback? assignMember = selectedDate == null
                             ? null
                             : () {
@@ -75,12 +96,17 @@ class _MembersScreenState extends State<MembersScreen> {
                                   : null,
                             ),
                             title: Text(name),
-                            subtitle: Text(member.email ?? ''),
-                            trailing: FilledButton(
-                              onPressed: () =>
-                                  memberViewModel.toggleActive(member.id),
-                              child: Text(member.active == 1 ? 'On' : 'Off'),
-                            ),
+                            trailing: member.active == 1
+                                ? FilledButton(
+                                    onPressed: () =>
+                                        memberViewModel.toggleActive(member.id),
+                                    child: const Text('On'),
+                                  )
+                                : OutlinedButton(
+                                    onPressed: () =>
+                                        memberViewModel.toggleActive(member.id),
+                                    child: const Text('Off'),
+                                  ),
                             onTap: assignMember,
                           ),
                         );

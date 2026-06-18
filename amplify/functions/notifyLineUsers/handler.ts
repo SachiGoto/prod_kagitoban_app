@@ -6,7 +6,8 @@ type AssignmentNotification = {
   memberName: string;
 };
 
-type ChangeNotification = AssignmentNotification & {
+type ChangeNotification = Omit<AssignmentNotification, "memberId"> & {
+  memberId?: string;
   previousMemberId?: string;
   previousMemberName?: string;
 };
@@ -70,7 +71,7 @@ export const handler = async (event: any) => {
 
       await pushLineMessage(
         memberId,
-        `${member.memberName}さん\n\n📅 スケジュールが確定しました。\nアプリで担当日をご確認ください。`,
+        `${member.memberName}さん\n\nスケジュールが確定しました。\nアプリで担当日をご確認ください。`,
       );
     }
 
@@ -89,12 +90,16 @@ const notifyChangedAssignments = async (changes: ChangeNotification[]) => {
   const messagesByMemberId = new Map<string, string[]>();
 
   for (const change of changes) {
-    if (!change.date || !change.memberId || !change.memberName) {
+    if (!change.date || !change.memberName) {
       throw new Error(`Invalid change item: ${JSON.stringify(change)}`);
     }
 
     const previousMemberName = change.previousMemberName ?? "未設定";
-    const message = `🔄 鍵当番のスケジュールが変更されました。\n\n${change.date}\n変更前: ${previousMemberName}さん\n変更後: ${change.memberName}さん`;
+    const newMemberName =
+      change.memberName === "担当者なし"
+        ? change.memberName
+        : `${change.memberName}さん`;
+    const message = `鍵当番のスケジュールが変更されました。\n\n${change.date}\n変更前: ${previousMemberName}さん\n変更後: ${newMemberName}`;
 
     if (change.previousMemberId) {
       const messages = messagesByMemberId.get(change.previousMemberId) ?? [];
@@ -102,9 +107,11 @@ const notifyChangedAssignments = async (changes: ChangeNotification[]) => {
       messagesByMemberId.set(change.previousMemberId, messages);
     }
 
-    const newMessages = messagesByMemberId.get(change.memberId) ?? [];
-    newMessages.push(message);
-    messagesByMemberId.set(change.memberId, newMessages);
+    if (change.memberId) {
+      const newMessages = messagesByMemberId.get(change.memberId) ?? [];
+      newMessages.push(message);
+      messagesByMemberId.set(change.memberId, newMessages);
+    }
   }
 
   for (const [memberId, messages] of messagesByMemberId.entries()) {

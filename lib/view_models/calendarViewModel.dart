@@ -6,6 +6,7 @@ import 'package:prod_kagitoban_app/core/api_loading_controller.dart';
 import 'package:prod_kagitoban_app/models/ModelProvider.dart';
 import 'package:prod_kagitoban_app/models/member.dart';
 import 'package:prod_kagitoban_app/services/line_notification_service.dart';
+import 'package:prod_kagitoban_app/utils/japanese_holidays.dart';
 
 class CalendarViewModel extends ChangeNotifier {
   DateTime? _selectedDate;
@@ -32,6 +33,13 @@ class CalendarViewModel extends ChangeNotifier {
     if (date == null) return;
     final key = DateTime(date.year, date.month, date.day);
     _assignments[key] = member;
+    notifyListeners();
+  }
+
+  void unassignSelectedDate(DateTime? date) {
+    if (date == null) return;
+    final key = DateTime(date.year, date.month, date.day);
+    _assignments.remove(key);
     notifyListeners();
   }
 
@@ -86,25 +94,32 @@ class CalendarViewModel extends ChangeNotifier {
     final month = int.parse(yyyyMM.substring(4, 6));
 
     final daysInMonth = DateTime(year, month + 1, 0).day;
+    final assignableDates = List<DateTime>.generate(
+      daysInMonth,
+      (index) => DateTime(year, month, index + 1),
+    ).where((date) => !JapaneseHolidays.isNonWorkingDay(date)).toList();
+
+    if (assignableDates.isEmpty) return;
 
     _assignments
         .removeWhere((date, _) => date.year == year && date.month == month);
 
     final memberCount = activeMembers.length;
-    final baseDays = daysInMonth ~/ memberCount;
-    final remainder = daysInMonth % memberCount;
+    final shuffledMembers = List<Member>.of(activeMembers)..shuffle();
+    final baseDays = assignableDates.length ~/ memberCount;
+    final remainder = assignableDates.length % memberCount;
 
-    int currentDay = 1;
+    var currentDateIndex = 0;
 
     for (int i = 0; i < memberCount; i++) {
-      final member = activeMembers[i];
+      final member = shuffledMembers[i];
       final daysForThisMember = baseDays + (i < remainder ? 1 : 0);
 
       for (int d = 0; d < daysForThisMember; d++) {
-        if (currentDay > daysInMonth) break;
-        final date = DateTime(year, month, currentDay);
+        if (currentDateIndex >= assignableDates.length) break;
+        final date = assignableDates[currentDateIndex];
         _assignments[date] = member;
-        currentDay++;
+        currentDateIndex++;
       }
     }
 
@@ -149,7 +164,7 @@ class CalendarViewModel extends ChangeNotifier {
               'date': entry.key.toIso8601String().substring(0, 10),
               'memberId': entry.value.id,
               'memberName': entry.value.name,
-        })
+            })
         .toList();
     final changedAssignments = <Map<String, String>>[];
 
@@ -222,6 +237,38 @@ class CalendarViewModel extends ChangeNotifier {
         } else {
           safePrint('⏭ Skipped: $date');
         }
+      }
+
+      final sourceDateKeys = monthEntries
+          .map((entry) => entry.key.toIso8601String().substring(0, 10))
+          .toSet();
+
+      for (final existing in existingMap.values) {
+        if (sourceDateKeys.contains(existing.date)) continue;
+
+        changedAssignments.add({
+          'date': existing.date,
+          'previousMemberId': existing.memberId,
+          'previousMemberName': existing.memberName,
+          'memberName': '担当者なし',
+        });
+
+        final response = await ApiLoadingController.instance.run(
+          () => Amplify.API
+              .mutate(
+                request: ModelMutations.delete(
+                  existing,
+                  authorizationMode: APIAuthorizationType.userPools,
+                ),
+              )
+              .response,
+        );
+
+        if (response.errors.isNotEmpty) {
+          throw Exception(response.errors.first.message);
+        }
+
+        safePrint('🗑 Deleted: ${existing.date}');
       }
 
       safePrint('✅ All assignments saved!');

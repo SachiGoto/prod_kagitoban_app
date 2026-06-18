@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prod_kagitoban_app/utils/japanese_holidays.dart';
 import 'package:prod_kagitoban_app/view_models/calendarViewModel.dart';
 import 'package:prod_kagitoban_app/view_models/memberViewMode.dart';
 import 'package:provider/provider.dart';
@@ -72,6 +73,54 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadCurrentMonth();
   }
 
+  Future<void> _confirmFinalize(CalendarViewModel calendarVM) async {
+    final shouldFinalize = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('スケジュールを確定しますか？'),
+        content: Text('$_monthLabel の鍵当番を確定して、担当者にLINE通知を送ります。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('いいえ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('はい'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldFinalize != true) return;
+
+    await calendarVM.finalizeAssignments(month: _focusedMonth);
+  }
+
+  Future<void> _confirmUpdate(CalendarViewModel calendarVM) async {
+    final shouldUpdate = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('スケジュールを変更しますか？'),
+        content: Text('$_monthLabel の鍵当番を更新して、変更がある担当者にLINE通知を送ります。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('いいえ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('はい'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldUpdate != true) return;
+
+    await calendarVM.updateAssignments(month: _focusedMonth);
+  }
+
   List<String> get _weekdayLabels =>
       ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -105,6 +154,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final firstOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final calendarVM = context.watch<CalendarViewModel>();
     final assignments = calendarVM.assignments;
+    final hasAssignmentsForFocusedMonth = assignments.keys.any(
+      (date) =>
+          date.year == _focusedMonth.year && date.month == _focusedMonth.month,
+    );
     debugPrint("loaded assignments: ${assignments.length}");
     debugPrint(
         "loaded assignments: ${assignments.keys.map((d) => _keyForDate(d)).join(', ')}");
@@ -122,6 +175,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final isToday = date.year == _today.year &&
           date.month == _today.month &&
           date.day == _today.day;
+      final isSaturday = date.weekday == DateTime.saturday;
+      final isSunday = date.weekday == DateTime.sunday;
+      final isHoliday = JapaneseHolidays.isHoliday(date);
+      final isNonWorkingDay = isSaturday || isSunday || isHoliday;
+      final backgroundColor = isToday
+          ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
+          : isHoliday || isSunday
+              ? Colors.red.withOpacity(0.10)
+              : isSaturday
+                  ? Colors.blue.withOpacity(0.10)
+                  : null;
+      final dayTextColor = isToday
+          ? Theme.of(context).colorScheme.primary
+          : isHoliday || isSunday
+              ? Colors.red
+              : isSaturday
+                  ? Colors.blue
+                  : null;
 
       return AspectRatio(
         aspectRatio: 1.0,
@@ -139,10 +210,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               if (selected != null && selected.isNotEmpty) {
                 setState(() {});
+                final dateLabel =
+                    date.toLocal().toIso8601String().split('T').first;
+                final message = selected == '担当者なし'
+                    ? '$dateLabel の担当者を外しました'
+                    : 'Assigned "$selected" to $dateLabel';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                        'Assigned "$selected" to ${date.toLocal().toIso8601String().split('T').first}'),
+                    content: Text(message),
                   ),
                 );
               }
@@ -150,9 +225,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Container(
               alignment: Alignment.topCenter,
               decoration: BoxDecoration(
-                color: isToday
-                    ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
-                    : null,
+                color: backgroundColor,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Padding(
@@ -164,11 +237,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       '$dayNumber',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: isToday
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
+                        color: dayTextColor,
                       ),
                     ),
+                    if (isNonWorkingDay)
+                      Text(
+                        isHoliday ? '祝日' : '休み',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color:
+                              isHoliday || isSunday ? Colors.red : Colors.blue,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     if (assignments.containsKey(date))
                       Text(
                         assignments[date]?.name ?? 'No assignment',
@@ -186,7 +267,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar'),
+        title: const Text('鍵当番スケジュール'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -221,19 +302,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         .activeMembers,
                                   );
                                 },
-                          child: const Text('Auto assign'),
+                          child: const Text('自動割り当て'),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(
-                          onPressed: _isPastMonth
+                          onPressed: _isPastMonth ||
+                                  (!calendarVM.isFinalized &&
+                                      !hasAssignmentsForFocusedMonth)
                               ? null
                               : () => calendarVM.isFinalized
-                                  ? calendarVM.updateAssignments(
-                                      month: _focusedMonth)
-                                  : calendarVM.finalizeAssignments(
-                                      month: _focusedMonth),
-                          child: Text(
-                              calendarVM.isFinalized ? 'Update' : 'Finalize'),
+                                  ? _confirmUpdate(calendarVM)
+                                  : _confirmFinalize(calendarVM),
+                          child: Text(calendarVM.isFinalized ? '更新' : '確定'),
                         ),
                       ],
                     );
@@ -309,8 +389,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         },
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month), label: 'Calendar'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Members'),
+              icon: Icon(Icons.calendar_month), label: 'スケジュール'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'メンバー'),
         ],
       ),
     );
