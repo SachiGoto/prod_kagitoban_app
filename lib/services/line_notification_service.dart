@@ -13,6 +13,24 @@ class LineNotificationService {
 
   static Future<void> notifyAssignments(
       List<Map<String, String>> assignments) async {
+    await _notify(
+      type: 'finalized',
+      assignments: assignments,
+    );
+  }
+
+  static Future<void> notifyChangedAssignments(
+      List<Map<String, String>> assignments) async {
+    await _notify(
+      type: 'changed',
+      assignments: assignments,
+    );
+  }
+
+  static Future<void> _notify({
+    required String type,
+    required List<Map<String, String>> assignments,
+  }) async {
     if (assignments.isEmpty) {
       return;
     }
@@ -25,6 +43,7 @@ class LineNotificationService {
 
     // AWSJSON に渡すため、Listをそのまま渡さず、JSON文字列にする
     final jsonPayload = jsonEncode({
+      'type': type,
       'items': jsonAssignments,
     });
 

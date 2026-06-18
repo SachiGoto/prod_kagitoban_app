@@ -1,6 +1,7 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { saveLineUser } from "../functions/saveLineUser/resource";
 import { notify } from "../functions/notifyLineUsers/resource";
+import { remindKeyDuty } from "../functions/remindKeyDuty/resource";
 // import { saveSchedule } from "../functions/saveSchedule/resource";
 // import { saveAssignments } from "../functions/saveAssignments/resource";
 
@@ -45,6 +46,7 @@ const schema = a
   .authorization((allow) => [
     allow.resource(saveLineUser).to(["query", "mutate"]),
     allow.resource(notify).to(["query", "mutate"]),
+    allow.resource(remindKeyDuty).to(["query"]),
   ]);
 
 // saveAssignments: a

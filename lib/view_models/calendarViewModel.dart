@@ -62,7 +62,16 @@ class CalendarViewModel extends ChangeNotifier {
       notifyListeners();
     }
 
-    await _saveAssignments(month: month, source: assignments ?? _assignments);
+    final saveResult = await _saveAssignments(
+      month: month,
+      source: assignments ?? _assignments,
+    );
+
+    if (saveResult.changedAssignments.isNotEmpty) {
+      await LineNotificationService.notifyChangedAssignments(
+        saveResult.changedAssignments,
+      );
+    }
   }
 
   void autoAssignMembersForMonth({
@@ -103,21 +112,23 @@ class CalendarViewModel extends ChangeNotifier {
   }
 
   Future<void> finalizeAssignments({DateTime? month}) async {
-    final savedAssignments = await _saveAssignments(
+    final saveResult = await _saveAssignments(
       month: month,
       source: _assignments,
     );
 
-    if (savedAssignments.isNotEmpty) {
-      await LineNotificationService.notifyAssignments(savedAssignments);
+    if (saveResult.savedAssignments.isNotEmpty) {
+      await LineNotificationService.notifyAssignments(
+        saveResult.savedAssignments,
+      );
     }
   }
 
-  Future<List<Map<String, String>>> _saveAssignments({
+  Future<_SaveAssignmentsResult> _saveAssignments({
     DateTime? month,
     required Map<DateTime, Member> source,
   }) async {
-    if (source.isEmpty) return [];
+    if (source.isEmpty) return const _SaveAssignmentsResult();
 
     final firstDate = month ?? source.keys.first;
     final yearMonth =
@@ -131,15 +142,16 @@ class CalendarViewModel extends ChangeNotifier {
         .toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
-    if (monthEntries.isEmpty) return [];
+    if (monthEntries.isEmpty) return const _SaveAssignmentsResult();
 
     final savedAssignments = monthEntries
         .map((entry) => {
               'date': entry.key.toIso8601String().substring(0, 10),
               'memberId': entry.value.id,
               'memberName': entry.value.name,
-            })
+        })
         .toList();
+    final changedAssignments = <Map<String, String>>[];
 
     try {
       // Step 1: Fetch existing assignments for this month from DynamoDB
@@ -177,8 +189,21 @@ class CalendarViewModel extends ChangeNotifier {
             throw Exception(response.errors.first.message);
           }
           safePrint('✅ Created: $date');
+          changedAssignments.add({
+            'date': date,
+            'memberId': member.id,
+            'memberName': member.name,
+          });
         } else if (existing.memberId != member.id ||
             existing.memberName != member.name) {
+          changedAssignments.add({
+            'date': date,
+            'previousMemberId': existing.memberId,
+            'previousMemberName': existing.memberName,
+            'memberId': member.id,
+            'memberName': member.name,
+          });
+
           final updated = existing.copyWith(
             memberId: member.id,
             memberName: member.name,
@@ -201,7 +226,10 @@ class CalendarViewModel extends ChangeNotifier {
 
       safePrint('✅ All assignments saved!');
       await loadAssignments(yearMonth);
-      return savedAssignments;
+      return _SaveAssignmentsResult(
+        savedAssignments: savedAssignments,
+        changedAssignments: changedAssignments,
+      );
     } on ApiException catch (e) {
       safePrint('Mutation failed: $e');
       rethrow;
@@ -249,4 +277,14 @@ class CalendarViewModel extends ChangeNotifier {
 
     return page.items;
   }
+}
+
+class _SaveAssignmentsResult {
+  final List<Map<String, String>> savedAssignments;
+  final List<Map<String, String>> changedAssignments;
+
+  const _SaveAssignmentsResult({
+    this.savedAssignments = const [],
+    this.changedAssignments = const [],
+  });
 }
