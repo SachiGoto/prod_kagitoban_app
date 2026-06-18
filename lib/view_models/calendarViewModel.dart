@@ -169,7 +169,7 @@ class CalendarViewModel extends ChangeNotifier {
                 .mutate(
                     request: ModelMutations.create(
                   assignment,
-                  authorizationMode: APIAuthorizationType.apiKey,
+                  authorizationMode: APIAuthorizationType.userPools,
                 ))
                 .response,
           );
@@ -187,7 +187,7 @@ class CalendarViewModel extends ChangeNotifier {
             () => Amplify.API
                 .mutate(
                     request: ModelMutations.update(updated,
-                        authorizationMode: APIAuthorizationType.apiKey))
+                        authorizationMode: APIAuthorizationType.userPools))
                 .response,
           );
           if (response.errors.isNotEmpty) {
@@ -232,7 +232,7 @@ class CalendarViewModel extends ChangeNotifier {
     final request = ModelQueries.list(
       Assignment.classType,
       where: Assignment.YEARMONTH.eq(yearMonth),
-      authorizationMode: APIAuthorizationType.apiKey,
+      authorizationMode: APIAuthorizationType.userPools,
       limit: 100,
     );
 
