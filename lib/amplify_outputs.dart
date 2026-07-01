@@ -1,9 +1,9 @@
 const amplifyConfig = r'''{
   "auth": {
-    "user_pool_id": "us-east-1_O0XoP5e9h",
-    "aws_region": "us-east-1",
-    "user_pool_client_id": "10j7rtr9qk2gqhr69ivjicqllp",
-    "identity_pool_id": "us-east-1:eb1d37e7-897d-4b0c-905a-2bee634ec758",
+    "user_pool_id": "ap-northeast-1_WiZvIHXl9",
+    "aws_region": "ap-northeast-1",
+    "user_pool_client_id": "4ade25ka46ctj42d986vnjmu98",
+    "identity_pool_id": "ap-northeast-1:e03716ae-c4d7-4d7c-b1c9-9148f0cc4dbb",
     "mfa_methods": [],
     "standard_required_attributes": [
       "email"
@@ -27,7 +27,7 @@ const amplifyConfig = r'''{
       "identity_providers": [],
       "redirect_sign_in_uri": [
         "http://localhost:57417/",
-        "https://main.d3c2p7z3mrhvgx.amplifyapp.com/"
+        "https://main.d1vatehoq5fvk6.amplifyapp.com"
       ],
       "redirect_sign_out_uri": [
         "http://localhost:57417/",
@@ -41,14 +41,14 @@ const amplifyConfig = r'''{
         "profile",
         "aws.cognito.signin.user.admin"
       ],
-      "domain": "63d4afbba5c63bbe88ec.auth.us-east-1.amazoncognito.com"
+      "domain": "e4cb1af719ecd6a24679.auth.ap-northeast-1.amazoncognito.com"
     },
     "unauthenticated_identities_enabled": true
   },
   "data": {
-    "url": "https://qfaue2sqr5afva5hewad24gpzu.appsync-api.us-east-1.amazonaws.com/graphql",
-    "aws_region": "us-east-1",
-    "api_key": "da2-mvj5ztsx5rgi3lwe7m5rh5faee",
+    "url": "https://t2n4s5fh6rbxnph3xgiu4matqy.appsync-api.ap-northeast-1.amazonaws.com/graphql",
+    "aws_region": "ap-northeast-1",
+    "api_key": "da2-ukdodij6ffe6nnk6cklzvvlaky",
     "default_authorization_type": "API_KEY",
     "authorization_types": [
       "AMAZON_COGNITO_USER_POOLS",
@@ -311,7 +311,23 @@ const amplifyConfig = r'''{
         }
       },
       "enums": {},
-      "nonModels": {}
+      "nonModels": {},
+      "mutations": {
+        "notifyUsers": {
+          "name": "notifyUsers",
+          "isArray": false,
+          "type": "AWSJSON",
+          "isRequired": false,
+          "arguments": {
+            "assignments": {
+              "name": "assignments",
+              "isArray": false,
+              "type": "AWSJSON",
+              "isRequired": true
+            }
+          }
+        }
+      }
     }
   },
   "version": "1.4"
