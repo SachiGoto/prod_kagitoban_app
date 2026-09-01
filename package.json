@@ -15,10 +15,10 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "@aws-amplify/backend": "^1.19.0",
-    "@aws-amplify/backend-cli": "^1.8.1",
+    "@aws-amplify/backend": "^1.24.0",
+    "@aws-amplify/backend-cli": "^1.9.0",
     "@types/node": "^25.0.9",
-    "aws-cdk-lib": "^2.216.0",
+    "aws-cdk-lib": "^2.267.0",
     "constructs": "^10.4.4",
     "esbuild": "^0.27.2",
     "tsx": "^4.21.0",
